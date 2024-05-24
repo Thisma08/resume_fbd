@@ -1,7 +1,8 @@
+-- P1
 -- 1.
 DELIMITER |
 
-CREATE PROCEDURE CountDistinctArticles(
+CREATE PROCEDURE compter_articles(
     IN startDate DATETIME,
     IN endDate DATETIME,
     OUT articleCount INT
@@ -15,7 +16,7 @@ END|
 
 DELIMITER ;
 
-CALL CountDistinctArticles('2020-03-26 00:00:00', '2020-03-29 12:00:00', @count);
+CALL compter_articles('2020-03-26 00:00:00', '2020-03-29 12:00:00', @count);
 
 SELECT @count AS nbre_articles_differents_achates;
 
@@ -47,7 +48,7 @@ SELECT @nombre_augmentations AS NombreAugmentations;
 -- 3.
 DELIMITER |
 
-CREATE PROCEDURE DernierSamediDuMois(IN p_date DATE, OUT dernier_samedi DATE)
+CREATE PROCEDURE dernier_samedi_du_mois(IN p_date DATE, OUT dernier_samedi DATE)
 BEGIN
     DECLARE jour INT;
     DECLARE dernier_jour DATE;    
@@ -60,11 +61,69 @@ DELIMITER ;
 
 SET @dernier_samedi = NULL;
 
-CALL DernierSamediDuMois('2021-03-10', @dernier_samedi);
+CALL dernier_samedi_du_mois('2021-03-10', @dernier_samedi);
 SELECT @dernier_samedi AS 'dernier_samedi_mars_2021';
 
-CALL DernierSamediDuMois('2016-04-02', @dernier_samedi);
+CALL dernier_samedi_du_mois('2016-04-02', @dernier_samedi);
 SELECT @dernier_samedi AS 'dernier_samedi_avril_2016';
 
+-- P2
+-- 1.
+DELIMITER |
 
+CREATE PROCEDURE supprimer_evenement_limite_client(
+    IN eventName VARCHAR(50),
+    IN minParticipants INT
+)
+BEGIN
+    DECLARE participantCount INT;
+    SELECT COUNT(*) INTO participantCount
+    FROM participation
+    WHERE nomevent = eventName;
+    IF participantCount < minParticipants THEN
+        DELETE FROM participation
+        WHERE nomevent = eventName;
+        DELETE FROM evenement
+        WHERE nomevent = eventName;
+    END IF;
+END |
 
+DELIMITER ;
+
+CALL supprimer_evenement_limite_client('Foire aux vins', 4);
+
+SELECT * FROM evenement;
+SELECT * FROM participation;
+
+-- 2.
+CREATE USER 'user_proc'@'localhost' IDENTIFIED BY 'proc';
+GRANT EXECUTE ON dbexercices_q2.* TO 'user_proc'@'localhost';
+GRANT SELECT ON dbexercices_q2.* TO 'user_proc'@'localhost';
+
+DELIMITER |
+
+CREATE PROCEDURE customer_summary(IN client_id INT) SQL SECURITY INVOKER
+BEGIN
+    DECLARE total_achats DECIMAL(8,2);
+    DECLARE total_events INT;
+
+    SELECT COUNT(*) INTO total_achats
+    FROM achat
+    WHERE numcli = client_id;
+
+    SELECT COUNT(*) INTO total_events
+    FROM participation
+    WHERE numcli = client_id;
+
+    SELECT SUM((prixachat * quantite * (1 - remise))) INTO total_achats
+    FROM detailachat
+    WHERE numcli = client_id;
+
+    IF total_achats > 30 THEN
+        SELECT CONCAT(nomcli, ' ', prenomcli, ' est un gros client') AS message;
+    ELSE
+        SELECT CONCAT(nomcli, ' ', prenomcli, ' est un client occasionnel') AS message;
+    END IF;
+END |
+
+DELIMITER ;
